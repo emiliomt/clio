@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clio</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #f5f5f5;
+    }
+
+    /* Top bar */
+    .header {
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* Main container */
+    .container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Left panel - Notes list */
+    .sidebar {
+      width: 280px;
+      background: #f9f9f9;
+      border-right: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      font-family: inherit;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .new-note-btn {
+      width: 100%;
+      padding: 8px;
+      background: #fff;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    .new-note-btn:hover {
+      background: #f0f0f0;
+    }
+
+    .notes-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px;
+    }
+
+    .note-item {
+      padding: 10px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      margin-bottom: 4px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+    }
+
+    .note-item:hover {
+      background: #f5f5f5;
+    }
+
+    .note-item.active {
+      background: #e8e8e8;
+      border-color: #ccc;
+    }
+
+    .note-item-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .note-item-snippet {
+      font-size: 11px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Right panel - Editor */
+    .editor-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    .editor-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .editor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .delete-btn {
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      color: #c00;
+    }
+
+    .delete-btn:hover {
+      background: #fee;
+    }
+
+    .title-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      font-family: inherit;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .content-area {
+      flex: 1;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      resize: none;
+      min-height: 300px;
+    }
+
+    .backlinks-panel {
+      border-top: 1px solid #ddd;
+      padding: 16px 20px;
+      background: #fafafa;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .backlinks-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .backlink-item {
+      font-size: 12px;
+      color: #0066cc;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+
+    .backlink-item:hover {
+      text-decoration: underline;
+    }
+
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      color: #999;
+      font-size: 14px;
+    }
+
+    /* Wiki link styling in rendered content */
+    .wiki-link {
+      color: #0066cc;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .wiki-link:hover {
+      text-decoration: underline;
+    }
+
+    .content-display {
+      padding: 12px;
+      border: 1px solid #ddd;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      min-height: 300px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">Clio</div>
+  
+  <div class="container">
+    <!-- Left sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <input type="text" class="search-box" placeholder="Search notes..." id="searchBox">
+        <button class="new-note-btn" id="newNoteBtn">+ New Note</button>
+      </div>
+      <div class="notes-list" id="notesList"></div>
+    </div>
+
+    <!-- Right editor -->
+    <div class="editor-panel">
+      <div class="editor-container" id="editorContainer">
+        <div class="empty-state">Select a note or create a new one</div>
+      </div>
+      <div class="backlinks-panel" id="backlinksPanel" style="display: none;">
+        <div class="backlinks-title">Linked from:</div>
+        <div id="backlinksList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * DATA STRUCTURE:
+     * Notes are stored in localStorage as JSON array
+     * Each note object: {
+     *   id: unique timestamp-based ID
+     *   title: string
+     *   content: string (plain text with [[WikiLinks]])
+     *   createdAt: timestamp
+     *   updatedAt: timestamp
+     * }
+     */
+
+    const STORAGE_KEY = 'personal-notes-db';
+    let notes = [];
+    let currentNoteId = null;
+    let saveTimeout = null;
+
+    // Load notes from localStorage
+    function loadNotes() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      notes = stored ? JSON.parse(stored) : [];
+    }
+
+    // Save notes to localStorage
+    function saveNotes() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    }
+
+    // Create a new note
+    function createNote(title = 'Untitled') {
+      const note = {
+        id: Date.now(),
+        title: title,
+        content: '',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      notes.unshift(note);
+      saveNotes();
+      return note;
+    }
+
+    // Get note by ID
+    function getNoteById(id) {
+      return notes.find(n => n.id === id);
+    }
+
+    // Delete note by ID
+    function deleteNote(id) {
+      notes = notes.filter(n => n.id !== id);
+      saveNotes();
+    }
+
+    // Update note
+    function updateNote(id, updates) {
+      const note = getNoteById(id);
+      if (note) {
+        Object.assign(note, updates, { updatedAt: Date.now() });
+        saveNotes();
+      }
+    }
+
+    // Search notes
+    function searchNotes(query) {
+      if (!query) return notes;
+      const lower = query.toLowerCase();
+      return notes.filter(n => 
+        n.title.toLowerCase().includes(lower) || 
+        n.content.toLowerCase().includes(lower)
+      );
+    }
+
+    /**
+     * WIKI LINK PARSING:
+     * Detects [[WikiLink]] patterns in text
+     * Returns array of link titles found
+     */
+    function extractWikiLinks(text) {
+      const regex = /\[\[([^\]]+)\]\]/g;
+      const links = [];
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        links.push(match[1]);
+      }
+      return links;
+    }
+
+    /**
+     * BACKLINKS COMPUTATION:
+     * Scans all notes to find which ones link to the current note
+     */
+    function getBacklinks(noteTitle) {
+      return notes.filter(n => {
+        const links = extractWikiLinks(n.content);
+        return links.includes(noteTitle);
+      });
+    }
+
+    // Render wiki links in content
+    function renderWikiLinks(text) {
+      return text.replace(/\[\[([^\]]+)\]\]/g, (match, title) => {
+        return `<span class="wiki-link" data-link-title="${title}">${match}</span>`;
+      });
+    }
+
+    // Render notes list
+    function renderNotesList(notesToRender = notes) {
+      const listEl = document.getElementById('notesList');
+      
+      if (notesToRender.length === 0) {
+        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">No notes found</div>';
+        return;
+      }
+
+      listEl.innerHTML = notesToRender.map(note => {
+        const snippet = note.content.substring(0, 50).replace(/\n/g, ' ');
+        return `
+          <div class="note-item ${note.id === currentNoteId ? 'active' : ''}" data-note-id="${note.id}">
+            <div class="note-item-title">${note.title || 'Untitled'}</div>
+            <div class="note-item-snippet">${snippet}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Add click handlers
+      document.querySelectorAll('.note-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const noteId = parseInt(item.dataset.noteId);
+          openNote(noteId);
+        });
+      });
+    }
+
+    // Open a note in the editor
+    function openNote(noteId) {
+      const note = getNoteById(noteId);
+      if (!note) return;
+
+      currentNoteId = noteId;
+      const container = document.getElementById('editorContainer');
+      
+      container.innerHTML = `
+        <div class="editor-header">
+          <div></div>
+          <button class="delete-btn" id="deleteBtn">Delete Note</button>
+        </div>
+        <input type="text" class="title-input" id="titleInput" value="${note.title}" placeholder="Note title">
+        <textarea class="content-area" id="contentInput" placeholder="Start typing... Use [[Note Title]] to link to other notes">${note.content}</textarea>
+      `;
+
+      // Add event listeners
+      const titleInput = document.getElementById('titleInput');
+      const contentInput = document.getElementById('contentInput');
+      const deleteBtn = document.getElementById('deleteBtn');
+
+      titleInput.addEventListener('input', () => {
+        debounceSave(() => {
+          updateNote(noteId, { title: titleInput.value });
+          renderNotesList(searchNotes(document.getElementById('searchBox').value));
+        });
+      });
+
+      contentInput.addEventListener('input', () => {
+        debounceSave(() => {
+          updateNote(noteId, { content: contentInput.value });
+          renderBacklinks();
+        });
+      });
+
+      deleteBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to delete this note?')) {
+          deleteNote(noteId);
+          currentNoteId = null;
+          container.innerHTML = '<div class="empty-state">Note deleted. Select another note or create a new one.</div>';
+          document.getElementById('backlinksPanel').style.display = 'none';
+          renderNotesList(searchNotes(document.getElementById('searchBox').value));
+        }
+      });
+
+      // Handle wiki link clicks in content area
+      contentInput.addEventListener('click', handleWikiLinkClick);
+
+      // Render backlinks
+      renderBacklinks();
+      renderNotesList(searchNotes(document.getElementById('searchBox').value));
+
+      // Focus title if empty
+      if (!note.title || note.title === 'Untitled') {
+        titleInput.focus();
+        titleInput.select();
+      }
+    }
+
+    // Handle clicking on wiki links
+    function handleWikiLinkClick(e) {
+      const textarea = e.target;
+      const text = textarea.value;
+      const pos = textarea.selectionStart;
+      
+      // Find if cursor is within a [[WikiLink]]
+      const beforeCursor = text.substring(0, pos);
+      const afterCursor = text.substring(pos);
+      
+      const openBracket = beforeCursor.lastIndexOf('[[');
+      const closeBracket = afterCursor.indexOf(']]');
+      
+      if (openBracket !== -1 && closeBracket !== -1) {
+        const linkStart = openBracket + 2;
+        const linkEnd = pos + closeBracket;
+        const linkTitle = text.substring(linkStart, linkEnd);
+        
+        // Check if we're actually inside the link
+        if (pos >= openBracket && pos <= linkEnd + 2) {
+          navigateToWikiLink(linkTitle);
+        }
+      }
+    }
+
+    // Navigate to a wiki link (create if doesn't exist)
+    function navigateToWikiLink(title) {
+      let note = notes.find(n => n.title === title);
+      
+      if (!note) {
+        // Create new note with this title
+        note = createNote(title);
+        renderNotesList(searchNotes(document.getElementById('searchBox').value));
+      }
+      
+      openNote(note.id);
+    }
+
+    // Render backlinks panel
+    function renderBacklinks() {
+      if (!currentNoteId) return;
+      
+      const note = getNoteById(currentNoteId);
+      if (!note) return;
+
+      const backlinks = getBacklinks(note.title);
+      const panel = document.getElementById('backlinksPanel');
+      const list = document.getElementById('backlinksList');
+
+      if (backlinks.length === 0) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      panel.style.display = 'block';
+      list.innerHTML = backlinks.map(bl => 
+        `<div class="backlink-item" data-note-id="${bl.id}">${bl.title}</div>`
+      ).join('');
+
+      // Add click handlers
+      document.querySelectorAll('.backlink-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const noteId = parseInt(item.dataset.noteId);
+          openNote(noteId);
+        });
+      });
+    }
+
+    // Debounce save function
+    function debounceSave(callback) {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(callback, 300);
+    }
+
+    // Initialize app
+    function init() {
+      loadNotes();
+      renderNotesList();
+
+      // New note button
+      document.getElementById('newNoteBtn').addEventListener('click', () => {
+        const note = createNote();
+        openNote(note.id);
+      });
+
+      // Search box
+      const searchBox = document.getElementById('searchBox');
+      searchBox.addEventListener('input', (e) => {
+        const results = searchNotes(e.target.value);
+        renderNotesList(results);
+      });
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+          e.preventDefault();
+          // Auto-save is already happening, just provide feedback
+          if (currentNoteId) {
+            const note = getNoteById(currentNoteId);
+            console.log('Note saved:', note.title);
+          }
+        }
+      });
+    }
+
+    // Start the app
+    init();
+  </script>
+</body>
+</html>
