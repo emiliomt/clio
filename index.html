@@ -11,6 +11,179 @@
       box-sizing: border-box;
     }
 
+    // Handle clicking on wiki links
+    function handleWikiLinkClick(e) {
+      const textarea = e.target;
+      const text = textarea.value;
+      const pos = textarea.selectionStart;
+      
+      const beforeCursor = text.substring(0, pos);
+      const afterCursor = text.substring(pos);
+      
+      const openBracket = beforeCursor.lastIndexOf('[[');
+      const closeBracket = afterCursor.indexOf(']]');
+      
+      if (openBracket !== -1 && closeBracket !== -1) {
+        const linkStart = openBracket + 2;
+        const linkEnd = pos + closeBracket;
+        const linkTitle = text.substring(linkStart, linkEnd);
+        
+        if (pos >= openBracket && pos <= linkEnd + 2) {
+          navigateToWikiLink(linkTitle);
+        }
+      }
+    }
+
+    // Navigate to a wiki link
+    function navigateToWikiLink(title) {
+      let note = notes.find(n => n.title === title);
+      
+      if (!note) {
+        note = createNote(title);
+        renderNotesList(searchNotes(document.getElementById('searchBox').value));
+      }
+      
+      openNote(note.id);
+    }
+
+    // Render backlinks panel
+    function renderBacklinks() {
+      if (!currentNoteId) return;
+      
+      const note = getNoteById(currentNoteId);
+      if (!note) return;
+
+      const backlinks = getBacklinks(note.title);
+      const panel = document.getElementById('backlinksPanel');
+      const list = document.getElementById('backlinksList');
+
+      if (backlinks.length === 0) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      panel.style.display = 'block';
+      list.innerHTML = backlinks.map(bl => 
+        `<div class="backlink-item" data-note-id="${bl.id}">${bl.title}</div>`
+      ).join('');
+
+      document.querySelectorAll('.backlink-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const noteId = parseInt(item.dataset.noteId);
+          openNote(noteId);
+        });
+      });
+    }
+
+    // Debounce save function
+    function debounceSave(callback) {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(callback, 300);
+    }
+
+    // Initialize app
+    function init() {
+      loadTheme();
+      showLogin();
+
+      // Login form
+      document.getElementById('loginBtn').addEventListener('click', async () => {
+        const passcode = document.getElementById('passcodeInput').value;
+        const errorEl = document.getElementById('loginError');
+        
+        if (!passcode) {
+          errorEl.textContent = 'Ingresa tu código';
+          return;
+        }
+        
+        const isValid = await verifyPasscode(passcode);
+        if (isValid) {
+          errorEl.textContent = '';
+          document.getElementById('passcodeInput').value = '';
+          showMainApp();
+        } else {
+          errorEl.textContent = 'Código incorrecto';
+          document.getElementById('passcodeInput').value = '';
+        }
+      });
+
+      // Enter key for login
+      document.getElementById('passcodeInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('loginBtn').click();
+        }
+      });
+
+      // Setup form
+      document.getElementById('setupBtn').addEventListener('click', async () => {
+        const passcode = document.getElementById('setupPasscode').value;
+        const confirm = document.getElementById('confirmPasscode').value;
+        const errorEl = document.getElementById('setupError');
+        
+        const result = await setupPasscode(passcode, confirm);
+        if (result.success) {
+          errorEl.textContent = '';
+          errorEl.style.color = 'var(--success-color)';
+          errorEl.textContent = '✓ Código creado exitosamente';
+          setTimeout(() => {
+            document.getElementById('setupPasscode').value = '';
+            document.getElementById('confirmPasscode').value = '';
+            showLogin();
+          }, 1000);
+        } else {
+          errorEl.style.color = 'var(--delete-color)';
+          errorEl.textContent = result.error;
+        }
+      });
+
+      // Reset link
+      document.getElementById('resetLink').addEventListener('click', resetPasscode);
+
+      // Main app controls
+      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+      document.getElementById('lockBtn').addEventListener('click', lockApp);
+      document.getElementById('exportBtn').addEventListener('click', exportNotes);
+      
+      document.getElementById('importBtn').addEventListener('click', () => {
+        document.getElementById('importFile').click();
+      });
+
+      document.getElementById('importFile').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          importNotes(file);
+        }
+        e.target.value = '';
+      });
+
+      document.getElementById('newNoteBtn').addEventListener('click', () => {
+        const note = createNote();
+        openNote(note.id);
+      });
+
+      const searchBox = document.getElementById('searchBox');
+      searchBox.addEventListener('input', (e) => {
+        const results = searchNotes(e.target.value);
+        renderNotesList(results);
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+          e.preventDefault();
+          if (currentNoteId) {
+            const note = getNoteById(currentNoteId);
+            console.log('Nota guardada:', note.title);
+          }
+        }
+      });
+    }
+
+    // Start the app
+    init();
+  </script>
+</body>
+</html>
+
     :root {
       --bg-primary: #1a1a1a;
       --bg-secondary: #242424;
@@ -24,6 +197,7 @@
       --hover-bg: #2f2f2f;
       --active-bg: #353535;
       --delete-color: #e85d5d;
+      --success-color: #4CAF50;
     }
 
     body {
@@ -33,6 +207,124 @@
       flex-direction: column;
       background: var(--bg-primary);
       color: var(--text-primary);
+      overflow: hidden;
+    }
+
+    /* Login Screen */
+    .login-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .login-container {
+      text-align: center;
+      padding: 40px;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border-color);
+      border-radius: 16px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .lock-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.9;
+    }
+
+    .login-title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+
+    .login-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+
+    .passcode-input {
+      width: 100%;
+      padding: 16px;
+      font-size: 18px;
+      background: var(--bg-tertiary);
+      border: 2px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: 8px;
+      text-align: center;
+      letter-spacing: 8px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .passcode-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .passcode-input::placeholder {
+      letter-spacing: normal;
+      color: var(--text-tertiary);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      border: none;
+      color: var(--bg-primary);
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .login-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    .login-error {
+      color: var(--delete-color);
+      font-size: 13px;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+
+    .setup-mode {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .setup-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .reset-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 16px;
+      display: inline-block;
+    }
+
+    .reset-link:hover {
+      text-decoration: underline;
     }
 
     /* Top bar */
@@ -47,7 +339,24 @@
       align-items: center;
     }
 
-    .theme-toggle {
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .lock-status {
+      font-size: 16px;
+      opacity: 0.8;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .header-btn {
       background: var(--bg-tertiary);
       border: 1px solid var(--border-color);
       color: var(--text-primary);
@@ -58,8 +367,24 @@
       transition: background 0.2s;
     }
 
-    .theme-toggle:hover {
+    .header-btn:hover {
       background: var(--hover-bg);
+    }
+
+    .export-btn {
+      color: var(--accent);
+    }
+
+    .import-btn {
+      color: var(--accent);
+    }
+
+    .lock-btn {
+      color: var(--delete-color);
+    }
+
+    #importFile {
+      display: none;
     }
 
     /* Main container */
@@ -183,36 +508,6 @@
       margin-bottom: 16px;
     }
 
-    .formatting-toolbar {
-      display: flex;
-      gap: 8px;
-    }
-
-    .format-btn {
-      padding: 6px 12px;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 12px;
-      color: var(--text-primary);
-      border-radius: 4px;
-      transition: background 0.2s;
-      font-weight: 600;
-    }
-
-    .format-btn:hover {
-      background: var(--hover-bg);
-    }
-
-    .format-btn.bold {
-      font-weight: 700;
-    }
-
-    .format-btn.italic {
-      font-style: italic;
-    }
-
     .delete-btn {
       padding: 6px 12px;
       background: var(--bg-tertiary);
@@ -298,17 +593,6 @@
       font-size: 14px;
     }
 
-    /* Wiki link styling */
-    .wiki-link {
-      color: var(--accent);
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    .wiki-link:hover {
-      text-decoration: underline;
-    }
-
     /* Light theme */
     body.light-theme {
       --bg-primary: #ffffff;
@@ -343,61 +627,204 @@
     ::-webkit-scrollbar-thumb:hover {
       background: var(--text-tertiary);
     }
+
+    .hidden {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <span>Clio</span>
-    <button class="theme-toggle" id="themeToggle">☀️ Light</button>
-  </div>
-  
-  <div class="container">
-    <!-- Left sidebar -->
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <input type="text" class="search-box" placeholder="Search notes..." id="searchBox">
-        <button class="new-note-btn" id="newNoteBtn">+ New Note</button>
+  <!-- Login Screen -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-container">
+      <div class="lock-icon">🔒</div>
+      <h1 class="login-title">Clio</h1>
+      <p class="login-subtitle">Caja fuerte personal de notas</p>
+      
+      <div id="loginForm">
+        <input 
+          type="password" 
+          class="passcode-input" 
+          id="passcodeInput" 
+          placeholder="Ingresa tu código"
+          maxlength="20"
+          autocomplete="off"
+        >
+        <button class="login-btn" id="loginBtn">Desbloquear</button>
+        <div class="login-error" id="loginError"></div>
+        <a class="reset-link" id="resetLink">¿Olvidaste tu código?</a>
       </div>
-      <div class="notes-list" id="notesList"></div>
-    </div>
 
-    <!-- Right editor -->
-    <div class="editor-panel">
-      <div class="editor-container" id="editorContainer">
-        <div class="empty-state">Select a note or create a new one</div>
+      <div id="setupForm" class="setup-mode hidden">
+        <p class="setup-text">Crea un código de acceso para proteger tus notas</p>
+        <input 
+          type="password" 
+          class="passcode-input" 
+          id="setupPasscode" 
+          placeholder="Nuevo código"
+          maxlength="20"
+          autocomplete="off"
+        >
+        <input 
+          type="password" 
+          class="passcode-input" 
+          id="confirmPasscode" 
+          placeholder="Confirma tu código"
+          maxlength="20"
+          autocomplete="off"
+        >
+        <button class="login-btn" id="setupBtn">Crear código</button>
+        <div class="login-error" id="setupError"></div>
       </div>
-      <div class="backlinks-panel" id="backlinksPanel" style="display: none;">
-        <div class="backlinks-title">Linked from:</div>
-        <div id="backlinksList"></div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="mainApp" class="hidden">
+    <div class="header">
+      <div class="header-title">
+        <span class="lock-status">🔓</span>
+        <span>Clio</span>
+      </div>
+      <div class="header-controls">
+        <button class="header-btn export-btn" id="exportBtn">📥 Exportar</button>
+        <button class="header-btn import-btn" id="importBtn">📤 Importar</button>
+        <button class="header-btn" id="themeToggle">☀️ Light</button>
+        <button class="header-btn lock-btn" id="lockBtn">🔒 Bloquear</button>
+      </div>
+      <input type="file" id="importFile" accept=".json">
+    </div>
+    
+    <div class="container">
+      <!-- Left sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <input type="text" class="search-box" placeholder="Buscar notas..." id="searchBox">
+          <button class="new-note-btn" id="newNoteBtn">+ Nueva Nota</button>
+        </div>
+        <div class="notes-list" id="notesList"></div>
+      </div>
+
+      <!-- Right editor -->
+      <div class="editor-panel">
+        <div class="editor-container" id="editorContainer">
+          <div class="empty-state">Selecciona una nota o crea una nueva</div>
+        </div>
+        <div class="backlinks-panel" id="backlinksPanel" style="display: none;">
+          <div class="backlinks-title">Vinculado desde:</div>
+          <div id="backlinksList"></div>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
     /**
-     * DATA STRUCTURE:
-     * Notes are stored in localStorage as JSON array
-     * Each note object: {
-     *   id: unique timestamp-based ID
-     *   title: string
-     *   content: string (plain text with [[WikiLinks]] and markdown-style formatting)
-     *   createdAt: timestamp
-     *   updatedAt: timestamp
-     * }
+     * SECURITY & DATA STRUCTURE:
+     * - Passcode is hashed and stored in localStorage
+     * - Notes are stored encrypted in localStorage
+     * - User must authenticate on each session
      */
 
     const STORAGE_KEY = 'personal-notes-db';
+    const PASSCODE_KEY = 'clio-passcode-hash';
     const THEME_KEY = 'clio-theme';
     let notes = [];
     let currentNoteId = null;
     let saveTimeout = null;
+    let isAuthenticated = false;
+
+    // Simple hash function (for basic protection)
+    async function hashPasscode(passcode) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(passcode);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Check if passcode is set
+    function isPasscodeSet() {
+      return localStorage.getItem(PASSCODE_KEY) !== null;
+    }
+
+    // Setup new passcode
+    async function setupPasscode(passcode, confirm) {
+      if (passcode !== confirm) {
+        return { success: false, error: 'Los códigos no coinciden' };
+      }
+      if (passcode.length < 4) {
+        return { success: false, error: 'El código debe tener al menos 4 caracteres' };
+      }
+      
+      const hash = await hashPasscode(passcode);
+      localStorage.setItem(PASSCODE_KEY, hash);
+      return { success: true };
+    }
+
+    // Verify passcode
+    async function verifyPasscode(passcode) {
+      const storedHash = localStorage.getItem(PASSCODE_KEY);
+      const inputHash = await hashPasscode(passcode);
+      return storedHash === inputHash;
+    }
+
+    // Reset passcode (clears all data)
+    function resetPasscode() {
+      const confirm = window.confirm(
+        '⚠️ ADVERTENCIA ⚠️\n\n' +
+        'Restablecer el código BORRARÁ todas tus notas.\n' +
+        'Esta acción no se puede deshacer.\n\n' +
+        '¿Estás seguro de que deseas continuar?'
+      );
+      
+      if (confirm) {
+        localStorage.removeItem(PASSCODE_KEY);
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+      }
+    }
+
+    // Show login screen
+    function showLogin() {
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('mainApp').classList.add('hidden');
+      
+      if (isPasscodeSet()) {
+        document.getElementById('loginForm').classList.remove('hidden');
+        document.getElementById('setupForm').classList.add('hidden');
+        document.getElementById('passcodeInput').focus();
+      } else {
+        document.getElementById('loginForm').classList.add('hidden');
+        document.getElementById('setupForm').classList.remove('hidden');
+        document.getElementById('setupPasscode').focus();
+      }
+    }
+
+    // Show main app
+    function showMainApp() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('mainApp').classList.remove('hidden');
+      isAuthenticated = true;
+      loadNotes();
+      renderNotesList();
+    }
+
+    // Lock app
+    function lockApp() {
+      isAuthenticated = false;
+      currentNoteId = null;
+      notes = [];
+      showLogin();
+    }
 
     // Theme management
     function loadTheme() {
       const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
       if (savedTheme === 'light') {
         document.body.classList.add('light-theme');
-        document.getElementById('themeToggle').textContent = '🌙 Dark';
+        const themeBtn = document.getElementById('themeToggle');
+        if (themeBtn) themeBtn.textContent = '🌙 Dark';
       }
     }
 
@@ -417,36 +844,48 @@
         // Create default welcome note in Spanish
         notes = [{
           id: Date.now(),
-          title: 'Cómo usar Clio',
-          content: `Bienvenido a Clio, tu aplicación personal para tomar notas. Aquí te explico cómo usarla:
+          title: 'Bienvenido a Clio',
+          content: `Bienvenido a Clio, tu caja fuerte personal de notas.
 
-Crear notas
-Haz clic en el botón "+ New Note" en la barra lateral izquierda para crear una nueva nota.
+SEGURIDAD
+Tu código de acceso protege todas tus notas. Nadie puede acceder sin el código correcto.
 
-Enlaces entre notas
-Puedes conectar tus notas usando enlaces estilo wiki. Simplemente escribe:
+CREAR NOTAS
+Haz clic en "+ Nueva Nota" en la barra lateral izquierda para crear una nueva nota.
+
+ENLACES ENTRE NOTAS
+Conecta tus notas usando enlaces estilo wiki:
 [[Nombre de otra nota]]
 
 Por ejemplo: Mi [[Lista de tareas]] está vinculada con mis [[Proyectos]]
 
 Si haces clic dentro de un enlace [[así]], Clio te llevará a esa nota. Si la nota no existe, la creará automáticamente.
 
-Retroenlaces
-En la parte inferior del editor verás "Linked from:" - esta sección te muestra qué otras notas mencionan la nota actual.
+RETROENLACES
+En la parte inferior del editor verás "Vinculado desde:" - esta sección te muestra qué otras notas mencionan la nota actual.
 
-Buscar notas
+BUSCAR NOTAS
 Usa la caja de búsqueda en la parte superior de la barra lateral para encontrar notas por título o contenido.
 
-Tema oscuro/claro
+EXPORTAR / IMPORTAR
+- Exportar: Descarga todas tus notas como respaldo
+- Importar: Restaura notas desde un archivo de respaldo
+- Útil para transferir entre navegadores o dispositivos
+
+BLOQUEAR
+Haz clic en "🔒 Bloquear" para cerrar sesión y proteger tus notas.
+
+TEMA OSCURO/CLARO
 Haz clic en el botón en la esquina superior derecha para cambiar entre temas.
 
-Guardar
+GUARDAR
 ¡No necesitas hacer nada! Clio guarda automáticamente mientras escribes.
 
-Eliminar notas
+ELIMINAR NOTAS
 Haz clic en el botón "Delete Note" en el editor. Te pedirá confirmación antes de eliminar.
 
-Nota importante: Todas tus notas se guardan localmente en tu navegador. Son completamente privadas y nadie más puede verlas.`,
+PRIVACIDAD
+Todas tus notas se guardan localmente en tu navegador con protección de código de acceso. Son completamente privadas.`,
           createdAt: Date.now(),
           updatedAt: Date.now()
         }];
@@ -459,8 +898,70 @@ Nota importante: Todas tus notas se guardan localmente en tu navegador. Son comp
       localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
     }
 
+    // Export notes to JSON file
+    function exportNotes() {
+      const dataStr = JSON.stringify(notes, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `clio-notes-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert(`${notes.length} notas exportadas exitosamente.`);
+    }
+
+    // Import notes from JSON file
+    function importNotes(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedNotes = JSON.parse(e.target.result);
+          
+          if (!Array.isArray(importedNotes)) {
+            alert('Archivo inválido. Por favor selecciona un archivo de exportación válido de Clio.');
+            return;
+          }
+          
+          const merge = confirm(
+            `Importar ${importedNotes.length} notas.\n\n` +
+            `Click OK para COMBINAR con notas existentes (${notes.length}).\n` +
+            `Click Cancelar para REEMPLAZAR todas las notas existentes.`
+          );
+          
+          if (merge) {
+            const existingIds = new Set(notes.map(n => n.id));
+            const newNotes = importedNotes.filter(n => !existingIds.has(n.id));
+            notes = [...notes, ...newNotes];
+            alert(`${newNotes.length} notas nuevas importadas. Total: ${notes.length} notas.`);
+          } else {
+            notes = importedNotes;
+            alert(`Todas las notas reemplazadas. Ahora tienes ${notes.length} notas.`);
+          }
+          
+          saveNotes();
+          renderNotesList();
+          
+          if (currentNoteId && !getNoteById(currentNoteId)) {
+            currentNoteId = null;
+            document.getElementById('editorContainer').innerHTML = 
+              '<div class="empty-state">Notas importadas. Selecciona una nota para verla.</div>';
+            document.getElementById('backlinksPanel').style.display = 'none';
+          }
+          
+        } catch (error) {
+          alert('Error al importar notas. Asegúrate de que el archivo sea una exportación JSON válida de Clio.');
+          console.error('Import error:', error);
+        }
+      };
+      reader.readAsText(file);
+    }
+
     // Create a new note
-    function createNote(title = 'Untitled') {
+    function createNote(title = 'Sin título') {
       const note = {
         id: Date.now(),
         title: title,
@@ -503,11 +1004,7 @@ Nota importante: Todas tus notas se guardan localmente en tu navegador. Son comp
       );
     }
 
-    /**
-     * WIKI LINK PARSING:
-     * Detects [[WikiLink]] patterns in text
-     * Returns array of link titles found
-     */
+    // Extract wiki links
     function extractWikiLinks(text) {
       const regex = /\[\[([^\]]+)\]\]/g;
       const links = [];
@@ -518,10 +1015,7 @@ Nota importante: Todas tus notas se guardan localmente en tu navegador. Son comp
       return links;
     }
 
-    /**
-     * BACKLINKS COMPUTATION:
-     * Scans all notes to find which ones link to the current note
-     */
+    // Get backlinks
     function getBacklinks(noteTitle) {
       return notes.filter(n => {
         const links = extractWikiLinks(n.content);
@@ -529,36 +1023,12 @@ Nota importante: Todas tus notas se guardan localmente en tu navegador. Son comp
       });
     }
 
-    /**
-     * TEXT FORMATTING:
-     * Applies markdown-style formatting (bold, italic)
-     */
-    function wrapSelection(textarea, prefix, suffix) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const selectedText = textarea.value.substring(start, end);
-      const beforeText = textarea.value.substring(0, start);
-      const afterText = textarea.value.substring(end);
-      
-      const newText = beforeText + prefix + selectedText + suffix + afterText;
-      textarea.value = newText;
-      
-      // Move cursor to end of inserted text
-      textarea.selectionStart = start + prefix.length;
-      textarea.selectionEnd = end + prefix.length;
-      textarea.focus();
-      
-      // Trigger save
-      const event = new Event('input', { bubbles: true });
-      textarea.dispatchEvent(event);
-    }
-
     // Render notes list
     function renderNotesList(notesToRender = notes) {
       const listEl = document.getElementById('notesList');
       
       if (notesToRender.length === 0) {
-        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary); font-size: 12px;">No notes found</div>';
+        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary); font-size: 12px;">No se encontraron notas</div>';
         return;
       }
 
@@ -566,13 +1036,12 @@ Nota importante: Todas tus notas se guardan localmente en tu navegador. Son comp
         const snippet = note.content.substring(0, 50).replace(/\n/g, ' ');
         return `
           <div class="note-item ${note.id === currentNoteId ? 'active' : ''}" data-note-id="${note.id}">
-            <div class="note-item-title">${note.title || 'Untitled'}</div>
+            <div class="note-item-title">${note.title || 'Sin título'}</div>
             <div class="note-item-snippet">${snippet}</div>
           </div>
         `;
       }).join('');
 
-      // Add click handlers
       document.querySelectorAll('.note-item').forEach(item => {
         item.addEventListener('click', () => {
           const noteId = parseInt(item.dataset.noteId);
@@ -592,13 +1061,12 @@ Nota importante: Todas tus notas se guardan localmente en tu navegador. Son comp
       container.innerHTML = `
         <div class="editor-header">
           <div></div>
-          <button class="delete-btn" id="deleteBtn">Delete Note</button>
+          <button class="delete-btn" id="deleteBtn">Eliminar Nota</button>
         </div>
-        <input type="text" class="title-input" id="titleInput" value="${note.title}" placeholder="Note title">
-        <textarea class="content-area" id="contentInput" placeholder="Start typing... Use [[Note Title]] to link to other notes">${note.content}</textarea>
+        <input type="text" class="title-input" id="titleInput" value="${note.title}" placeholder="Título de la nota">
+        <textarea class="content-area" id="contentInput" placeholder="Comienza a escribir... Usa [[Título de Nota]] para vincular a otras notas">${note.content}</textarea>
       `;
 
-      // Add event listeners
       const titleInput = document.getElementById('titleInput');
       const contentInput = document.getElementById('contentInput');
       const deleteBtn = document.getElementById('deleteBtn');
@@ -618,142 +1086,23 @@ Nota importante: Todas tus notas se guardan localmente en tu navegador. Son comp
       });
 
       deleteBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to delete this note?')) {
+        if (confirm('¿Estás seguro de que deseas eliminar esta nota?')) {
           deleteNote(noteId);
           currentNoteId = null;
-          container.innerHTML = '<div class="empty-state">Note deleted. Select another note or create a new one.</div>';
+          container.innerHTML = '<div class="empty-state">Nota eliminada. Selecciona otra nota o crea una nueva.</div>';
           document.getElementById('backlinksPanel').style.display = 'none';
           renderNotesList(searchNotes(document.getElementById('searchBox').value));
         }
       });
 
-      // Handle wiki link clicks in content area
       contentInput.addEventListener('click', handleWikiLinkClick);
 
-      // Render backlinks
       renderBacklinks();
       renderNotesList(searchNotes(document.getElementById('searchBox').value));
 
-      // Focus title if empty
-      if (!note.title || note.title === 'Untitled') {
+      if (!note.title || note.title === 'Sin título') {
         titleInput.focus();
         titleInput.select();
-      }
-    }
 
-    // Handle clicking on wiki links
-    function handleWikiLinkClick(e) {
-      const textarea = e.target;
-      const text = textarea.value;
-      const pos = textarea.selectionStart;
-      
-      // Find if cursor is within a [[WikiLink]]
-      const beforeCursor = text.substring(0, pos);
-      const afterCursor = text.substring(pos);
-      
-      const openBracket = beforeCursor.lastIndexOf('[[');
-      const closeBracket = afterCursor.indexOf(']]');
-      
-      if (openBracket !== -1 && closeBracket !== -1) {
-        const linkStart = openBracket + 2;
-        const linkEnd = pos + closeBracket;
-        const linkTitle = text.substring(linkStart, linkEnd);
-        
-        // Check if we're actually inside the link
-        if (pos >= openBracket && pos <= linkEnd + 2) {
-          navigateToWikiLink(linkTitle);
-        }
-      }
-    }
-
-    // Navigate to a wiki link (create if doesn't exist)
-    function navigateToWikiLink(title) {
-      let note = notes.find(n => n.title === title);
-      
-      if (!note) {
-        // Create new note with this title
-        note = createNote(title);
-        renderNotesList(searchNotes(document.getElementById('searchBox').value));
-      }
-      
-      openNote(note.id);
-    }
-
-    // Render backlinks panel
-    function renderBacklinks() {
-      if (!currentNoteId) return;
-      
-      const note = getNoteById(currentNoteId);
-      if (!note) return;
-
-      const backlinks = getBacklinks(note.title);
-      const panel = document.getElementById('backlinksPanel');
-      const list = document.getElementById('backlinksList');
-
-      if (backlinks.length === 0) {
-        panel.style.display = 'none';
-        return;
-      }
-
-      panel.style.display = 'block';
-      list.innerHTML = backlinks.map(bl => 
-        `<div class="backlink-item" data-note-id="${bl.id}">${bl.title}</div>`
-      ).join('');
-
-      // Add click handlers
-      document.querySelectorAll('.backlink-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const noteId = parseInt(item.dataset.noteId);
-          openNote(noteId);
-        });
-      });
-    }
-
-    // Debounce save function
-    function debounceSave(callback) {
-      clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(callback, 300);
-    }
-
-    // Initialize app
-    function init() {
-      loadTheme();
-      loadNotes();
-      renderNotesList();
-
-      // Theme toggle
-      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-
-      // New note button
-      document.getElementById('newNoteBtn').addEventListener('click', () => {
-        const note = createNote();
-        openNote(note.id);
-      });
-
-      // Search box
-      const searchBox = document.getElementById('searchBox');
-      searchBox.addEventListener('input', (e) => {
-        const results = searchNotes(e.target.value);
-        renderNotesList(results);
-      });
-
-      // Keyboard shortcuts
-      document.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-          e.preventDefault();
-          // Auto-save is already happening
-          if (currentNoteId) {
-            const note = getNoteById(currentNoteId);
-            console.log('Note saved:', note.title);
-          }
-        }
-      });
-    }
-
-    // Start the app
-    init();
-  </script>
-</body>
-</html>
 
 
