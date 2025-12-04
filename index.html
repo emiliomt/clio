@@ -11,21 +11,55 @@
       box-sizing: border-box;
     }
 
+    :root {
+      --bg-primary: #1a1a1a;
+      --bg-secondary: #242424;
+      --bg-tertiary: #2a2a2a;
+      --border-color: #3a3a3a;
+      --text-primary: #e0e0e0;
+      --text-secondary: #a0a0a0;
+      --text-tertiary: #707070;
+      --accent: #d4a574;
+      --accent-hover: #c89563;
+      --hover-bg: #2f2f2f;
+      --active-bg: #353535;
+      --delete-color: #e85d5d;
+    }
+
     body {
-      font-family: system-ui, -apple-system, monospace;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
       height: 100vh;
       display: flex;
       flex-direction: column;
-      background: #f5f5f5;
+      background: var(--bg-primary);
+      color: var(--text-primary);
     }
 
     /* Top bar */
     .header {
-      background: #fff;
-      border-bottom: 1px solid #ddd;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
       padding: 12px 20px;
       font-size: 14px;
       font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .theme-toggle {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.2s;
+    }
+
+    .theme-toggle:hover {
+      background: var(--hover-bg);
     }
 
     /* Main container */
@@ -38,62 +72,74 @@
     /* Left panel - Notes list */
     .sidebar {
       width: 280px;
-      background: #f9f9f9;
-      border-right: 1px solid #ddd;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
     }
 
     .sidebar-header {
       padding: 12px;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid var(--border-color);
     }
 
     .search-box {
       width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
       font-family: inherit;
       font-size: 13px;
       margin-bottom: 8px;
+      border-radius: 6px;
+    }
+
+    .search-box::placeholder {
+      color: var(--text-tertiary);
     }
 
     .new-note-btn {
       width: 100%;
-      padding: 8px;
-      background: #fff;
-      border: 1px solid #ddd;
+      padding: 8px 12px;
+      background: var(--accent);
+      border: none;
       cursor: pointer;
       font-family: inherit;
       font-size: 13px;
+      font-weight: 600;
+      color: var(--bg-primary);
+      border-radius: 6px;
+      transition: background 0.2s;
     }
 
     .new-note-btn:hover {
-      background: #f0f0f0;
+      background: var(--accent-hover);
     }
 
     .notes-list {
       flex: 1;
       overflow-y: auto;
-      padding: 4px;
+      padding: 8px;
     }
 
     .note-item {
-      padding: 10px;
-      border: 1px solid transparent;
+      padding: 10px 12px;
       cursor: pointer;
       margin-bottom: 4px;
-      background: #fff;
-      border: 1px solid #e0e0e0;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      transition: background 0.2s;
     }
 
     .note-item:hover {
-      background: #f5f5f5;
+      background: var(--hover-bg);
     }
 
     .note-item.active {
-      background: #e8e8e8;
-      border-color: #ccc;
+      background: var(--active-bg);
+      border-color: var(--accent);
     }
 
     .note-item-title {
@@ -103,11 +149,12 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      color: var(--text-primary);
     }
 
     .note-item-snippet {
       font-size: 11px;
-      color: #666;
+      color: var(--text-secondary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -118,7 +165,7 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      background: #fff;
+      background: var(--bg-primary);
     }
 
     .editor-container {
@@ -136,46 +183,92 @@
       margin-bottom: 16px;
     }
 
-    .delete-btn {
+    .formatting-toolbar {
+      display: flex;
+      gap: 8px;
+    }
+
+    .format-btn {
       padding: 6px 12px;
-      background: #fff;
-      border: 1px solid #ddd;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
       cursor: pointer;
       font-family: inherit;
       font-size: 12px;
-      color: #c00;
+      color: var(--text-primary);
+      border-radius: 4px;
+      transition: background 0.2s;
+      font-weight: 600;
+    }
+
+    .format-btn:hover {
+      background: var(--hover-bg);
+    }
+
+    .format-btn.bold {
+      font-weight: 700;
+    }
+
+    .format-btn.italic {
+      font-style: italic;
+    }
+
+    .delete-btn {
+      padding: 6px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--delete-color);
+      border-radius: 4px;
+      transition: background 0.2s;
     }
 
     .delete-btn:hover {
-      background: #fee;
+      background: var(--hover-bg);
     }
 
     .title-input {
       width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
       font-family: inherit;
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 600;
       margin-bottom: 12px;
+      border-radius: 8px;
+    }
+
+    .title-input::placeholder {
+      color: var(--text-tertiary);
     }
 
     .content-area {
       flex: 1;
       width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      font-family: monospace;
-      font-size: 14px;
+      padding: 16px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 15px;
       line-height: 1.6;
       resize: none;
       min-height: 300px;
+      border-radius: 8px;
+    }
+
+    .content-area::placeholder {
+      color: var(--text-tertiary);
     }
 
     .backlinks-panel {
-      border-top: 1px solid #ddd;
+      border-top: 1px solid var(--border-color);
       padding: 16px 20px;
-      background: #fafafa;
+      background: var(--bg-secondary);
       max-height: 150px;
       overflow-y: auto;
     }
@@ -183,13 +276,13 @@
     .backlinks-title {
       font-size: 12px;
       font-weight: 600;
-      color: #666;
+      color: var(--text-secondary);
       margin-bottom: 8px;
     }
 
     .backlink-item {
       font-size: 12px;
-      color: #0066cc;
+      color: var(--accent);
       cursor: pointer;
       padding: 4px 0;
     }
@@ -201,13 +294,13 @@
     .empty-state {
       padding: 40px;
       text-align: center;
-      color: #999;
+      color: var(--text-tertiary);
       font-size: 14px;
     }
 
-    /* Wiki link styling in rendered content */
+    /* Wiki link styling */
     .wiki-link {
-      color: #0066cc;
+      color: var(--accent);
       cursor: pointer;
       text-decoration: none;
     }
@@ -216,21 +309,47 @@
       text-decoration: underline;
     }
 
-    .content-display {
-      padding: 12px;
-      border: 1px solid #ddd;
-      font-family: monospace;
-      font-size: 14px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      min-height: 300px;
-      background: #fff;
+    /* Light theme */
+    body.light-theme {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f9f9f9;
+      --bg-tertiary: #f0f0f0;
+      --border-color: #e0e0e0;
+      --text-primary: #1a1a1a;
+      --text-secondary: #666666;
+      --text-tertiary: #999999;
+      --accent: #0066cc;
+      --accent-hover: #0052a3;
+      --hover-bg: #f5f5f5;
+      --active-bg: #e8e8e8;
+      --delete-color: #c00;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-tertiary);
     }
   </style>
 </head>
 <body>
-  <div class="header">Clio</div>
+  <div class="header">
+    <span>Clio</span>
+    <button class="theme-toggle" id="themeToggle">☀️ Light</button>
+  </div>
   
   <div class="container">
     <!-- Left sidebar -->
@@ -261,16 +380,33 @@
      * Each note object: {
      *   id: unique timestamp-based ID
      *   title: string
-     *   content: string (plain text with [[WikiLinks]])
+     *   content: string (plain text with [[WikiLinks]] and markdown-style formatting)
      *   createdAt: timestamp
      *   updatedAt: timestamp
      * }
      */
 
     const STORAGE_KEY = 'personal-notes-db';
+    const THEME_KEY = 'clio-theme';
     let notes = [];
     let currentNoteId = null;
     let saveTimeout = null;
+
+    // Theme management
+    function loadTheme() {
+      const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        document.getElementById('themeToggle').textContent = '🌙 Dark';
+      }
+    }
+
+    function toggleTheme() {
+      const isLight = document.body.classList.toggle('light-theme');
+      const themeBtn = document.getElementById('themeToggle');
+      themeBtn.textContent = isLight ? '🌙 Dark' : '☀️ Light';
+      localStorage.setItem(THEME_KEY, isLight ? 'light' : 'dark');
+    }
 
     // Load notes from localStorage
     function loadNotes() {
@@ -353,11 +489,28 @@
       });
     }
 
-    // Render wiki links in content
-    function renderWikiLinks(text) {
-      return text.replace(/\[\[([^\]]+)\]\]/g, (match, title) => {
-        return `<span class="wiki-link" data-link-title="${title}">${match}</span>`;
-      });
+    /**
+     * TEXT FORMATTING:
+     * Applies markdown-style formatting (bold, italic)
+     */
+    function wrapSelection(textarea, prefix, suffix) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = textarea.value.substring(start, end);
+      const beforeText = textarea.value.substring(0, start);
+      const afterText = textarea.value.substring(end);
+      
+      const newText = beforeText + prefix + selectedText + suffix + afterText;
+      textarea.value = newText;
+      
+      // Move cursor to end of inserted text
+      textarea.selectionStart = start + prefix.length;
+      textarea.selectionEnd = end + prefix.length;
+      textarea.focus();
+      
+      // Trigger save
+      const event = new Event('input', { bubbles: true });
+      textarea.dispatchEvent(event);
     }
 
     // Render notes list
@@ -365,7 +518,7 @@
       const listEl = document.getElementById('notesList');
       
       if (notesToRender.length === 0) {
-        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">No notes found</div>';
+        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary); font-size: 12px;">No notes found</div>';
         return;
       }
 
@@ -398,17 +551,26 @@
       
       container.innerHTML = `
         <div class="editor-header">
-          <div></div>
+          <div class="formatting-toolbar">
+            <button class="format-btn bold" id="boldBtn" title="Bold (Ctrl/Cmd+B)">B</button>
+            <button class="format-btn italic" id="italicBtn" title="Italic (Ctrl/Cmd+I)">I</button>
+          </div>
           <button class="delete-btn" id="deleteBtn">Delete Note</button>
         </div>
         <input type="text" class="title-input" id="titleInput" value="${note.title}" placeholder="Note title">
-        <textarea class="content-area" id="contentInput" placeholder="Start typing... Use [[Note Title]] to link to other notes">${note.content}</textarea>
+        <textarea class="content-area" id="contentInput" placeholder="Start typing... Use [[Note Title]] to link to other notes
+
+Formatting:
+**bold text** or __bold text__
+*italic text* or _italic text_">${note.content}</textarea>
       `;
 
       // Add event listeners
       const titleInput = document.getElementById('titleInput');
       const contentInput = document.getElementById('contentInput');
       const deleteBtn = document.getElementById('deleteBtn');
+      const boldBtn = document.getElementById('boldBtn');
+      const italicBtn = document.getElementById('italicBtn');
 
       titleInput.addEventListener('input', () => {
         debounceSave(() => {
@@ -434,8 +596,29 @@
         }
       });
 
+      // Formatting buttons
+      boldBtn.addEventListener('click', () => {
+        wrapSelection(contentInput, '**', '**');
+      });
+
+      italicBtn.addEventListener('click', () => {
+        wrapSelection(contentInput, '*', '*');
+      });
+
       // Handle wiki link clicks in content area
       contentInput.addEventListener('click', handleWikiLinkClick);
+
+      // Keyboard shortcuts for formatting
+      contentInput.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+          e.preventDefault();
+          wrapSelection(contentInput, '**', '**');
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+          e.preventDefault();
+          wrapSelection(contentInput, '*', '*');
+        }
+      });
 
       // Render backlinks
       renderBacklinks();
@@ -524,8 +707,12 @@
 
     // Initialize app
     function init() {
+      loadTheme();
       loadNotes();
       renderNotesList();
+
+      // Theme toggle
+      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
       // New note button
       document.getElementById('newNoteBtn').addEventListener('click', () => {
@@ -544,7 +731,7 @@
       document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
           e.preventDefault();
-          // Auto-save is already happening, just provide feedback
+          // Auto-save is already happening
           if (currentNoteId) {
             const note = getNoteById(currentNoteId);
             console.log('Note saved:', note.title);
@@ -558,3 +745,4 @@
   </script>
 </body>
 </html>
+
