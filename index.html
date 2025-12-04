@@ -253,9 +253,9 @@
       border: 1px solid var(--border-color);
       background: var(--bg-secondary);
       color: var(--text-primary);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      font-size: 15px;
-      line-height: 1.6;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 14px;
+      line-height: 1.5;
       resize: none;
       min-height: 300px;
       border-radius: 8px;
@@ -411,7 +411,47 @@
     // Load notes from localStorage
     function loadNotes() {
       const stored = localStorage.getItem(STORAGE_KEY);
-      notes = stored ? JSON.parse(stored) : [];
+      if (stored) {
+        notes = JSON.parse(stored);
+      } else {
+        // Create default welcome note in Spanish
+        notes = [{
+          id: Date.now(),
+          title: 'Cómo usar Clio',
+          content: `Bienvenido a Clio, tu aplicación personal para tomar notas. Aquí te explico cómo usarla:
+
+Crear notas
+Haz clic en el botón "+ New Note" en la barra lateral izquierda para crear una nueva nota.
+
+Enlaces entre notas
+Puedes conectar tus notas usando enlaces estilo wiki. Simplemente escribe:
+[[Nombre de otra nota]]
+
+Por ejemplo: Mi [[Lista de tareas]] está vinculada con mis [[Proyectos]]
+
+Si haces clic dentro de un enlace [[así]], Clio te llevará a esa nota. Si la nota no existe, la creará automáticamente.
+
+Retroenlaces
+En la parte inferior del editor verás "Linked from:" - esta sección te muestra qué otras notas mencionan la nota actual.
+
+Buscar notas
+Usa la caja de búsqueda en la parte superior de la barra lateral para encontrar notas por título o contenido.
+
+Tema oscuro/claro
+Haz clic en el botón en la esquina superior derecha para cambiar entre temas.
+
+Guardar
+¡No necesitas hacer nada! Clio guarda automáticamente mientras escribes.
+
+Eliminar notas
+Haz clic en el botón "Delete Note" en el editor. Te pedirá confirmación antes de eliminar.
+
+Nota importante: Todas tus notas se guardan localmente en tu navegador. Son completamente privadas y nadie más puede verlas.`,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }];
+        saveNotes();
+      }
     }
 
     // Save notes to localStorage
@@ -551,26 +591,17 @@
       
       container.innerHTML = `
         <div class="editor-header">
-          <div class="formatting-toolbar">
-            <button class="format-btn bold" id="boldBtn" title="Bold (Ctrl/Cmd+B)">B</button>
-            <button class="format-btn italic" id="italicBtn" title="Italic (Ctrl/Cmd+I)">I</button>
-          </div>
+          <div></div>
           <button class="delete-btn" id="deleteBtn">Delete Note</button>
         </div>
         <input type="text" class="title-input" id="titleInput" value="${note.title}" placeholder="Note title">
-        <textarea class="content-area" id="contentInput" placeholder="Start typing... Use [[Note Title]] to link to other notes
-
-Formatting:
-**bold text** or __bold text__
-*italic text* or _italic text_">${note.content}</textarea>
+        <textarea class="content-area" id="contentInput" placeholder="Start typing... Use [[Note Title]] to link to other notes">${note.content}</textarea>
       `;
 
       // Add event listeners
       const titleInput = document.getElementById('titleInput');
       const contentInput = document.getElementById('contentInput');
       const deleteBtn = document.getElementById('deleteBtn');
-      const boldBtn = document.getElementById('boldBtn');
-      const italicBtn = document.getElementById('italicBtn');
 
       titleInput.addEventListener('input', () => {
         debounceSave(() => {
@@ -596,29 +627,8 @@ Formatting:
         }
       });
 
-      // Formatting buttons
-      boldBtn.addEventListener('click', () => {
-        wrapSelection(contentInput, '**', '**');
-      });
-
-      italicBtn.addEventListener('click', () => {
-        wrapSelection(contentInput, '*', '*');
-      });
-
       // Handle wiki link clicks in content area
       contentInput.addEventListener('click', handleWikiLinkClick);
-
-      // Keyboard shortcuts for formatting
-      contentInput.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-          e.preventDefault();
-          wrapSelection(contentInput, '**', '**');
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
-          e.preventDefault();
-          wrapSelection(contentInput, '*', '*');
-        }
-      });
 
       // Render backlinks
       renderBacklinks();
@@ -745,4 +755,5 @@ Formatting:
   </script>
 </body>
 </html>
+
 
